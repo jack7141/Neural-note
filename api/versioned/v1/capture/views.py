@@ -73,26 +73,24 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
         content = Content.objects.create(title=title, content=content, source_url=url)
         # GPT 프롬프트 구성
         prompt = f"""
-        다음 텍스트를 분석하여 한국말로 아래 항목들을 추출해주세요:
+        The following text should be analyzed in Korean and the following information should be extracted:
 
-        1. 텍스트를 분석하여 다음 정보를 추출하세요.
-        2. 모든 응답은 리스트 형식으로 제공해야 합니다(단일 값도 리스트에 담아 반환).
-        3. 값을 추출할 수 없더라도 카테고리는 반드시 지정해야 합니다(적합한 카테고리가 없으면 '기타'로 분류).
-        4. 신뢰도 점수는 숫자만 포함하세요(% 기호 없이).
-
-        다음 JSON 형식으로 응답하되, 영어 키 값을 사용하세요:
+        1. Analyze the text and extract the following information.
+        2. All responses must be provided in a **list format** (even if there is only one item, return it as a list).
+        3. Use **English keys** exactly as specified below:
         {{
-          "category": [], // 콘텐츠 카테고리 (예: 기술, 과학, 경제, 교육 등)
-          "core_themes": [], // 핵심 주제 (텍스트의 가장 중심이 되는 주제들)
-          "main_concepts": [], // 주요 개념 (각 항목은 {{name: "개념명", confidence: 95}} 형식)
-          "key_claims": [], // 핵심 주장/관점 
-          "related_domains": [], // 관련 도메인 (해당 내용이 연관될 수 있는 다른 지식 분야)
-          "emotional_tone": [], // 감정 톤 (객관적, 주관적, 비판적, 중립적, 긍정적 등)
-          "key_terms": [], // 중요 용어나 전문 용어
-          "temporal_context": [] // 시간적 맥락 (과거, 현재, 미래 중심 또는 특정 시점 언급)
+            "category": [],         // Content categories (e.g., technology, science, economy, education, etc.)
+            "core_themes": [],       // Core themes/topics
+            "main_concepts": [       // Main concepts (each item must be in the format {{ "name": "concept name", "confidence": 95 }})
+            ],
+            "emotional_tone": [],    // Emotional tone (e.g., objective, subjective, critical, neutral, positive, etc.)
+            "mention_point_of_view": [] // Perspective mentioned (e.g., corporate perspective, consumer perspective)
         }}
 
-        텍스트: {content.content}
+        Return the entire output strictly as a JSON object without any additional explanation or text.
+
+        Text:
+        {Content.content}
         """
 
         try:
