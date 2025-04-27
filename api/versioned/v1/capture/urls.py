@@ -2,5 +2,5 @@ from django.urls import path
 from .views import StatusViewSet
 
 urlpatterns = [
-    path('', StatusViewSet.as_view({'post': 'status'}))
+    path('', StatusViewSet.as_view({'post': 'post'}))
 ]

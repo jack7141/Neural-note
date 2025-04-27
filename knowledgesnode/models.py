@@ -1,5 +1,8 @@
 from django.db import models
 
+from concept.models import ConceptDomain
+
+
 # Create your models here.
 
 class Content(models.Model):
@@ -40,12 +43,19 @@ class Concept(models.Model):
     name = models.CharField(max_length=100, db_index=True)
     confidence = models.FloatField()
     vector_embedding = models.JSONField(null=True, blank=True)
-    category = models.CharField(max_length=100, blank=True)
+    category = models.CharField(max_length=100, blank=True)  # 기존 필드
+    domain = models.ForeignKey(ConceptDomain, on_delete=models.SET_NULL, null=True, related_name='concepts')  # 추가
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # 개념 표현을 풍부하게 하는 필드들 추가
+    definition = models.TextField(blank=True)  # 개념 정의
+    importance_score = models.FloatField(default=0.0)  # 중요도 점수
+    context_snippet = models.TextField(blank=True)  # 개념이 등장한 원문 일부
 
     class Meta:
         indexes = [
             models.Index(fields=['name', 'confidence']),
+            models.Index(fields=['domain', 'importance_score']),  # 도메인 기반 검색 최적화
         ]
 
 

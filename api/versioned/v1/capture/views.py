@@ -9,6 +9,7 @@ from newspaper import Article
 
 import json
 
+from api.versioned.v1.capture.serializers import CaptureSerializer
 from knowledgesnode.models import ContentAnalysis, CoreTheme, RelatedDomain, KeyTerm, KeyClaim, Concept
 import requests
 from bs4 import BeautifulSoup
@@ -20,10 +21,23 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
     Kibana Heartbeat 상태 체크용 API 입니다.
     """
     permission_classes = [AllowAny, ]
-    serializer_class = Serializer
+    serializer_class = CaptureSerializer
 
-    def status(self, request, *args, **kwargs):
-        url = "https://n.news.naver.com/mnews/hotissue/article/029/0002944474?type=series&cid=2002644"
+    """
+    개념이 속한 가장 적절한 도메인 또는 주제 분야를 판단하고, 그에 맞는 벡터 표현을 생성하세요. -> 먼저 도메인 관련 DB를 만들고 아무것도 포함되지 않으면 생성하는 로직이 있어야할듯
+    가능한 도메인:
+    1. 통신/네트워크 기술
+    2. 사이버 보안
+    3. 환경/재활용
+    4. IT 기기/가전
+    5. 에너지 기술
+    6. 재난 대응/구호
+    7. 정책/규제
+    8. 연구개발/혁신
+    """
+    def post(self, request, *args, **kwargs):
+        url = "https://n.news.naver.com/mnews/article/014/0005341698"
+        serializer = self.get_serializer(*args, **kwargs).data
         # article = Article(url, language='ko')  # 한국어 지정
         # article.download()
         # article.parse()
