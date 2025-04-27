@@ -153,7 +153,7 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
         # GPT 프롬프트 구성
         leaf_domains = list(ConceptDomain.objects.filter(children__isnull=True).values_list('name', flat=True))
         prompt = f"""
-        다음 텍스트를 한국어로 분석하고 다음 정보를 추출하세요:
+        다음 텍스트를 한국어로 분석하고 다음 정보를 무조건 한국어로 추출하세요:
 
         1. 텍스트를 분석하고 다음 정보를 추출하세요.
         2. 모든 응답은 **리스트 형식**으로 제공해야 합니다 (단 하나의 항목이라도 리스트로 반환).
