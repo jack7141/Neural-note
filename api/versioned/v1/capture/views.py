@@ -13,6 +13,86 @@ from api.versioned.v1.capture.serializers import CaptureSerializer
 import requests
 from bs4 import BeautifulSoup
 
+from concept.models import ConceptDomain
+
+
+OPENAI_API_KEY = ""
+
+def process_core_themes(analysis_result):
+    """
+    Core themes의 상위 도메인을 LLM을 통해 결정
+    """
+    categories = analysis_result.get('category', [])
+    core_themes = analysis_result.get('core_themes', [])
+
+    # 상위 도메인 결정을 위한 추가 프롬프트
+    domain_prompt = f"""
+    다음 core themes와 기존 카테고리들을 고려하여 가장 적절한 상위 도메인을 선택하세요:
+
+    Core Themes: {core_themes}
+    기존 카테고리들: {categories}
+
+    Core Themes의 상위 카테고리를 {categories}에서 선택하고, 그 이유를 간단히 설명하세요. 
+    출력 형식:
+    {{
+        "parent_domain": "", // 선택된 상위 도메인
+        "reasoning": ""       // 선택 이유
+    }}
+    
+    출력은 추가 설명 없이 JSON 객체로 엄격하게 반환하세요.
+    """
+
+    try:
+        # OpenAI API 호출
+        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        domain_completion = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "도메인 분류 도우미입니다."},
+                {"role": "user", "content": domain_prompt}
+            ],
+            response_format={"type": "json_object"}
+        )
+
+        # 응답 처리
+        domain_response = json.loads(domain_completion.choices[0].message.content)
+        parent_domain_name = domain_response.get('parent_domain')
+
+        # 부모 도메인 찾기 또는 생성
+        parent_domain = ConceptDomain.objects.filter(name=parent_domain_name).first()
+        if not parent_domain:
+            parent_domain = ConceptDomain.objects.create(
+                code=parent_domain_name.replace(' ', '_').lower(),
+                name=parent_domain_name,
+                description=f"{parent_domain_name} 관련 주제"
+            )
+
+    except Exception as e:
+        # 예외 발생 시 기본값 사용
+        print(f"도메인 결정 중 오류: {e}")
+        parent_domain = ConceptDomain.objects.filter(name=categories[0]).first()
+
+    # Core themes 처리
+    processed_themes = []
+    for theme in core_themes:
+        # 이미 존재하는 도메인인지 확인
+        existing_domain = ConceptDomain.objects.filter(name=theme).first()
+
+        if not existing_domain:
+            # 새로운 leaf 도메인 생성
+            new_domain = ConceptDomain.objects.create(
+                code=theme.replace(' ', '_').lower(),
+                name=theme,
+                parent=parent_domain,  # 결정된 상위 도메인과 연결
+                description=f"{theme} 관련 세부 주제"
+            )
+            processed_themes.append(theme)
+        else:
+            processed_themes.append(existing_domain.name)
+
+    return processed_themes
+
+
 class StatusViewSet(viewsets.ReadOnlyModelViewSet):
     """
     status: 상태 체크
@@ -34,8 +114,9 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
     7. 정책/규제
     8. 연구개발/혁신
     """
+
     def post(self, request, *args, **kwargs):
-        url = "https://n.news.naver.com/mnews/article/014/0005341698"
+        url = "https://n.news.naver.com/mnews/article/032/0003365907"
         serializer = self.get_serializer(*args, **kwargs).data
         # article = Article(url, language='ko')  # 한국어 지정
         # article.download()
@@ -69,30 +150,35 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
         if not content:
             return Response({"error": "분석할 콘텐츠가 필요합니다."}, status=400)
         # GPT 프롬프트 구성
+        # GPT 프롬프트 구성
+        leaf_domains = list(ConceptDomain.objects.filter(children__isnull=True).values_list('name', flat=True))
         prompt = f"""
-        The following text should be analyzed in Korean and the following information should be extracted:
+        다음 텍스트를 한국어로 분석하고 다음 정보를 추출하세요:
 
-        1. Analyze the text and extract the following information.
-        2. All responses must be provided in a **list format** (even if there is only one item, return it as a list).
-        3. Use **English keys** exactly as specified below:
+        1. 텍스트를 분석하고 다음 정보를 추출하세요.
+        2. 모든 응답은 **리스트 형식**으로 제공해야 합니다 (단 하나의 항목이라도 리스트로 반환).
+        3. 다음 영어 키를 정확히 사용하여 응답하세요:
+        4. 다음 기존 카테고리와 비교하여 가장 적합한 카테고리를 선택하세요(단 어디에도 포함되지 않다면 새로운 개념을 제안하세요).:
+        {list(ConceptDomain.objects.all().values_list('name', flat=True))}
+        5. 다음 기존 leaf 개념들 중에서 주요 개념을 선택하세요(단 어디에도 포함되지 않다면 새로운 개념을 제안하세요). :
+        {leaf_domains}
         {{
-            "category": [],         // Content categories (e.g., technology, science, economy, education, etc.)
-            "core_themes": [],       // Core themes/topics
-            "main_concepts": [       // Main concepts (each item must be in the format {{ "name": "concept name", "confidence": 95 }})
+            "category": [],         // 콘텐츠 카테고리 (예: 기술, 과학, 경제, 교육 등)
+            "core_themes": [],      // 서브 카테고리 주제/토픽 -> tag 개념으로 수정해서 tag 별로 개념들을 엮는게 나으려나?
+            "main_concepts": [      // 주요 개념 (형식: {{ "name": "개념 이름", "confidence": 95 }})
             ],
-            "emotional_tone": [],    // Emotional tone (e.g., objective, subjective, critical, neutral, positive, etc.)
-            "mention_point_of_view": [] // Perspective mentioned (e.g., corporate perspective, consumer perspective)
+            "emotional_tone": [],   // 감정 톤 (예: 객관적, 주관적, 비판적, 중립적, 긍정적 등)
+            "mention_point_of_view": [] // 언급된 관점 (예: 기업 관점, 소비자 관점)
         }}
 
-        Return the entire output strictly as a JSON object without any additional explanation or text.
+        출력은 추가 설명 없이 JSON 객체로 엄격하게 반환하세요.
 
-        Text:
+        텍스트:
         {content}
         """
 
         try:
             # OpenAI API 호출 설정
-            OPENAI_API_KEY = ""
             client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
             # GPT API 호출
@@ -108,7 +194,7 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
             # 응답 추출 및 JSON 파싱
             gpt_response = completion.choices[0].message.content
             analysis_result = json.loads(gpt_response)
-
+            refined_core_themes = process_core_themes(analysis_result)
             # 9. 응답 반환
             return Response({
                 "id": content.id,
