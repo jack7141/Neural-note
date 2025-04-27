@@ -10,7 +10,6 @@ from newspaper import Article
 import json
 
 from api.versioned.v1.capture.serializers import CaptureSerializer
-from knowledgesnode.models import ContentAnalysis, CoreTheme, RelatedDomain, KeyTerm, KeyClaim, Concept
 import requests
 from bs4 import BeautifulSoup
 
@@ -69,8 +68,6 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
         print(f"Content preview: {content[:200]}")  # 앞부분 200자만 출력
         if not content:
             return Response({"error": "분석할 콘텐츠가 필요합니다."}, status=400)
-        from knowledgesnode.models import Content
-        content = Content.objects.create(title=title, content=content, source_url=url)
         # GPT 프롬프트 구성
         prompt = f"""
         The following text should be analyzed in Korean and the following information should be extracted:
@@ -90,12 +87,12 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
         Return the entire output strictly as a JSON object without any additional explanation or text.
 
         Text:
-        {Content.content}
+        {content}
         """
 
         try:
             # OpenAI API 호출 설정
-            OPENAI_API_KEY = "SECRET"
+            OPENAI_API_KEY = ""
             client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
             # GPT API 호출
@@ -111,60 +108,11 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
             # 응답 추출 및 JSON 파싱
             gpt_response = completion.choices[0].message.content
             analysis_result = json.loads(gpt_response)
-            content_analysis = ContentAnalysis.objects.create(
-                content=content,
-                category=analysis_result.get('category')[0],  # 첫 번째 카테고리 저장
-                emotional_tone=analysis_result.get('emotional_tone')[0],  # 첫 번째 감정톤 저장
-                temporal_context=analysis_result.get('temporal_context')[0],  # 첫 번째 시간적 맥락 저장
-                raw_analysis=analysis_result  # 원본 JSON 저장 (옵션)
-            )
-
-            # 4. 핵심 주제 저장
-            for theme in analysis_result.get('core_themes', []):
-                CoreTheme.objects.create(
-                    content_analysis=content_analysis,
-                    theme=theme
-                )
-
-            # 5. 개념 객체 생성 및 저장
-            concepts = []
-            for concept_data in analysis_result.get('main_concepts', []):
-                # 개선된 형식으로 이미 confidence는 숫자로 제공됨
-                concept = Concept.objects.create(
-                    content_analysis=content_analysis,
-                    name=concept_data["name"],
-                    confidence=concept_data["confidence"] / 100.0,  # 0-1 범위로 변환
-                    category=analysis_result.get('category')[0]  # 첫 번째 카테고리 사용
-                )
-                concepts.append(concept)
-
-            # 6. 핵심 주장 저장
-            for claim in analysis_result.get('key_claims', []):
-                KeyClaim.objects.create(
-                    content_analysis=content_analysis,
-                    claim=claim
-                )
-
-            # 7. 관련 도메인 저장
-            for domain in analysis_result.get('related_domains', []):
-                RelatedDomain.objects.create(
-                    content_analysis=content_analysis,
-                    domain=domain
-                )
-
-            # 8. 중요 용어 저장
-            for term in analysis_result.get('key_terms', []):
-                KeyTerm.objects.create(
-                    content_analysis=content_analysis,
-                    term=term
-                )
 
             # 9. 응답 반환
             return Response({
                 "id": content.id,
                 "title": content.title,
-                "analysis_id": content_analysis.id,
-                "concepts": [{"id": c.id, "name": c.name, "confidence": c.confidence} for c in concepts],
                 "message": "콘텐츠 분석 및 저장이 완료되었습니다."
             }, status=HTTP_201_CREATED)
 
