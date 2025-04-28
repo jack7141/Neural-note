@@ -116,26 +116,15 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     def post(self, request, *args, **kwargs):
-        url = "https://n.news.naver.com/mnews/article/032/0003365907"
-        serializer = self.get_serializer(*args, **kwargs).data
-        # article = Article(url, language='ko')  # 한국어 지정
-        # article.download()
-        # article.parse()
-        # content = article.text
-        # title = article.title
-        # print(f"Title: {title}")
-        # print(f"Content length: {len(content)}")
-        # print(f"Content preview: {content[:200]}")  # 앞부분 200자만 출력
-        # requests로 페이지 다운로드
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            url = serializer.validated_data.get('url')
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
         response = requests.get(url, headers=headers)
-
-        # BeautifulSoup으로 파싱
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # 제목 추출
         title_tag = soup.find('title')
         title = title_tag.get_text(strip=True) if title_tag else 'No title found'
 
@@ -143,13 +132,8 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
         content_tag = soup.find('div', id='dic_area') or soup.find('div', id='contents')
         content = content_tag.get_text(separator="\n", strip=True) if content_tag else ''
 
-        # 결과 출력
-        print(f"Title: {title}")
-        print(f"Content length: {len(content)}")
-        print(f"Content preview: {content[:200]}")  # 앞부분 200자만 출력
         if not content:
             return Response({"error": "분석할 콘텐츠가 필요합니다."}, status=400)
-        # GPT 프롬프트 구성
         # GPT 프롬프트 구성
         leaf_domains = list(ConceptDomain.objects.filter(children__isnull=True).values_list('name', flat=True))
         prompt = f"""
