@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -37,10 +38,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'rest_framework',
     'drf_spectacular',
-    'content',
+    'django_filters',
     'concept',
-    'connection'
+    'article',
+    'entity',
+    'event',
 ]
 
 MIDDLEWARE = [
@@ -158,3 +162,11 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+# Neo4j 설정
+NEO4J_URI = os.environ.get('NEO4J_URI', 'bolt://localhost:7687')
+NEO4J_USER = os.environ.get('NEO4J_USER', 'neo4j')
+NEO4J_PASSWORD = os.environ.get('NEO4J_PASSWORD', '#PASSWORD')
+
+# OpenAI API 키
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '#PASSWORD')
