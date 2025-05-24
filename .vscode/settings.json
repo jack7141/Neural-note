@@ -1,0 +1,42 @@
+{
+    // 1. Python 인터프리터 경로 (가장 중요! 실제 경로로 수정하세요)
+    // 예: "python.defaultInterpreterPath": "/Users/sellb/Desktop/develop/SellbuyMusic/.venv/bin/python",
+    // 또는 Command Palette (Cmd+Shift+P)에서 "Python: Select Interpreter"를 사용하세요.
+    // 2. Pylance 자동 임포트 및 분석 설정
+    "python.languageServer": "Pylance", // 또는 Default
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.indexing": true, // 프로젝트 심볼 인덱싱 활성화
+    "python.analysis.packageIndexDepths": [
+        {
+            "name": "django",
+            "depth": 5, // Django 프로젝트의 경우 깊이 증가가 도움될 수 있음
+            "includeAllSymbols": true
+        },
+    ],
+    "python.analysis.addImportOnCompletion": true,
+    // 3. 추가 라이브러리 검색 경로 (필요시 실제 경로로 수정)
+    "python.analysis.extraPaths": [
+        // Replace python3.X with your actual Python version folder (e.g., python3.9, python3.10, python3.11)
+        // Example: "/Users/sellb/Desktop/develop/SellbuyMusic/.venv/lib/python3.11/site-packages"
+        "/Users/sellb/Desktop/develop/SellbuyMusic/.venv/lib/python3.11/site-packages"
+    ],
+    // 4. 코드 포맷팅 (Black 사용 예시)
+    "editor.formatOnSave": true,
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    "black-formatter.args": [
+        "--line-length=88"
+    ],
+    // 5. 린팅 (Flake8 사용 예시 - Flake8 확장 설치 필요)
+    // "python.linting.enabled": true,
+    // "python.linting.pylintEnabled": false,
+    // "python.linting.flake8Enabled": true,
+    // "python.linting.flake8Args": [
+    //     "--max-line-length=88",
+    //     "--ignore=E203,W503" // Black과 충돌 방지
+    // ]
+}
